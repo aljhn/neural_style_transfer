@@ -2,12 +2,12 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torchvision
-from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
 from PIL import Image
+
+import torch
+import torch.optim as optim
+from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
+import torchvision.transforms as transforms
 
 import random
 random.seed(42069)
@@ -41,37 +41,61 @@ def main():
 
     weights = EfficientNet_V2_S_Weights.DEFAULT
     model = efficientnet_v2_s(weights=weights)
+    model.to(device)
     model.eval()
 
     content_layers = [7]
     style_layers = [0, 1, 2, 3, 4, 5, 6]
 
+    transform = transforms.Compose([
+        transforms.PILToTensor(),
+        transforms.ConvertImageDtype(torch.float32)
+    ])
+
     content_image_name = sys.argv[1]
     content_image_path = os.path.abspath(content_image_name)
-    print(content_image_path)
     content_image = Image.open(content_image_path)
+    content_image = transform(content_image)
+    content_image = content_image.unsqueeze(0)
+    content_image.to(device)
+    with torch.no_grad():
+        content_content_features, content_style_features = get_features(content_image, model, content_layers, style_layers)
 
-    style_image_name = sys.argv[2]
-    style_image_path = os.path.abspath(style_image_name)
-    print(style_image_path)
-    style_image = Image.open(style_image_path)
-    exit()
+    # style_image_name = sys.argv[2]
+    # style_image_path = os.path.abspath(style_image_name)
+    # style_image = Image.open(style_image_path)
+    # style_image = style_image.resize(content_image.shape[2:])
+    # style_image = transform(style_image)
+    # style_image = style_image.unsqueeze(0)
+    # style_image.to(device)
+    # with torch.no_grad():
+        # style_content_features, style_style_features = get_features(style_image, model, content_layers, style_layers)
 
-    width = 200
-    height = 200
-    x = torch.rand(size=(1, 3, width, height), dtype=torch.float32, device=device, requires_grad=True)
-    x_content_features, x_style_features = get_features(x, model, content_layers, style_layers)
+    height = content_image.shape[2]
+    width = content_image.shape[3]
+    x = torch.rand(size=(1, 3, height, width), dtype=torch.float32, device=device, requires_grad=True)
 
-    y = model(x)
-    L = torch.mean(y ** 2)
-    L.backward()
-    print(x.grad.shape)
-    exit()
+    optimizer = optim.Adam([x], lr=1e-1)
 
-    plt.imshow(x.detach().numpy())
-    plt.show()
+    plt.ion()
 
-    optimizer = optim.Adam(x, lr=3e-4)
+    epochs = 100
+    for epoch in range(1, epochs + 1):
+        image = x.detach().numpy()[0, :, :, :].transpose(1, 2, 0)
+        image = np.clip(image, 0, 1)
+        plt.imshow(image)
+        plt.pause(0.001)
+
+        x_content_features, x_style_features = get_features(x, model, content_layers, style_layers)
+
+        L_content = 0
+        for i in range(len(content_layers)):
+            L_content += 0.5 * torch.sum((x_content_features[i] - content_content_features[i]) ** 2)
+
+        L_content.backward()
+        optimizer.step()
+
+        print(f"Epoch: {epoch}, Content Loss: {L_content}")
 
 
 if __name__ == "__main__":
