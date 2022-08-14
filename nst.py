@@ -2,12 +2,12 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 
 import torch
 import torch.optim as optim
-from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
-import torchvision.transforms as transforms
+# from torchvision.models import efficientnet_v2_s, EfficientNet_V2_S_Weights
+from torchvision.models import vgg19, VGG19_Weights
+from torchvision.io import read_image
 
 import random
 random.seed(42069)
@@ -19,9 +19,13 @@ torch.manual_seed(42069)
 device = "cpu"
 
 
-def get_features(x, model, content_layers, style_layers):
+def get_features(x, model, preprocess, content_layers, style_layers):
     content_features = []
     style_features = []
+
+    preprocess.crop_size = x.shape[1:]
+    preprocess.resize_size = x.shape[1:]
+    x = preprocess(x).unsqueeze(0)
 
     for layer in range(len(model.features)):
         x = model.features[layer](x)
@@ -39,63 +43,89 @@ def main():
         print(f"python {sys.argv[0]} <content_image> <style_image>")
         sys.exit()
 
-    weights = EfficientNet_V2_S_Weights.DEFAULT
-    model = efficientnet_v2_s(weights=weights)
+    # weights = EfficientNet_V2_S_Weights.DEFAULT
+    # model = efficientnet_v2_s(weights=weights)
+    weights = VGG19_Weights.DEFAULT
+    model = vgg19(weights=weights)
     model.to(device)
     model.eval()
 
-    content_layers = [7]
-    style_layers = [0, 1, 2, 3, 4, 5, 6]
+    # for i in range(len(model.features)):
+        # if type(model.features[i]) == torch.nn.modules.conv.Conv2d:
+            # print(i)
+        # print(type(model.features[i]))
+    # exit()
 
-    transform = transforms.Compose([
-        transforms.PILToTensor(),
-        transforms.ConvertImageDtype(torch.float32)
-    ])
+    preprocess = weights.transforms()
+
+    content_layers = [0]
+    style_layers = [0]
+
+    content_weight = 1
+    style_weight = 1000
 
     content_image_name = sys.argv[1]
     content_image_path = os.path.abspath(content_image_name)
-    content_image = Image.open(content_image_path)
-    content_image = transform(content_image)
-    content_image = content_image.unsqueeze(0)
-    content_image.to(device)
+    content_image = read_image(content_image_path)
+    content_image = content_image.to(device)
+
     with torch.no_grad():
-        content_content_features, content_style_features = get_features(content_image, model, content_layers, style_layers)
+        content_features, _ = get_features(content_image, model, preprocess, content_layers, style_layers)
 
-    # style_image_name = sys.argv[2]
-    # style_image_path = os.path.abspath(style_image_name)
-    # style_image = Image.open(style_image_path)
-    # style_image = style_image.resize(content_image.shape[2:])
-    # style_image = transform(style_image)
-    # style_image = style_image.unsqueeze(0)
-    # style_image.to(device)
-    # with torch.no_grad():
-        # style_content_features, style_style_features = get_features(style_image, model, content_layers, style_layers)
+    style_image_name = sys.argv[1]
+    style_image_path = os.path.abspath(style_image_name)
+    style_image = read_image(style_image_path)
+    style_image = style_image.to(device)
 
-    height = content_image.shape[2]
-    width = content_image.shape[3]
-    x = torch.rand(size=(1, 3, height, width), dtype=torch.float32, device=device, requires_grad=True)
+    with torch.no_grad():
+        _, style_features = get_features(style_image, model, preprocess, style_layers, style_layers)
 
-    optimizer = optim.Adam([x], lr=1e-1)
+    x = torch.rand(size=content_image.shape, dtype=torch.float32, device=device, requires_grad=True)
+    x = x.to(device)
+
+    optimizer = optim.LBFGS([x])
 
     plt.ion()
 
-    epochs = 100
+    epochs = 2
+
+    content_losses = []
+    style_losses = []
+
     for epoch in range(1, epochs + 1):
-        image = x.detach().numpy()[0, :, :, :].transpose(1, 2, 0)
-        image = np.clip(image, 0, 1)
-        plt.imshow(image)
-        plt.pause(0.001)
 
-        x_content_features, x_style_features = get_features(x, model, content_layers, style_layers)
+        def closure(epoch):
+            with torch.no_grad():
+                x.clamp_(0, 1)
 
-        L_content = 0
-        for i in range(len(content_layers)):
-            L_content += 0.5 * torch.sum((x_content_features[i] - content_content_features[i]) ** 2)
+            optimizer.zero_grad()
 
-        L_content.backward()
-        optimizer.step()
+            image = x.detach().cpu().numpy().transpose(1, 2, 0)
+            plt.imshow(image)
+            plt.pause(0.001)
 
-        print(f"Epoch: {epoch}, Content Loss: {L_content}")
+            x_content_features, x_style_features = get_features(x, model, preprocess, content_layers, style_layers)
+
+            L_content = 0
+            for i in range(len(content_layers)):
+                L_content += 0.5 * torch.sum((x_content_features[i] - content_features[i]) ** 2)
+
+            L_style = 0
+
+            L = L_content * content_weight + L_style * style_weight
+            L.backward()
+
+            content_losses.append(L_content)
+            style_losses.append(0)
+
+            return L_content
+
+        optimizer.step(lambda: closure(epoch))
+
+        print(f"Epoch: {epoch}, Content Loss: {content_losses[-1]}")
+
+        # with torch.no_grad():
+            # x.clamp_(0, 1)
 
 
 if __name__ == "__main__":
