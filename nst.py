@@ -4,9 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torchvision.models import vgg19, VGG19_Weights
 from torchvision.io import read_image
+from torchvision.transforms.functional import resize
 
 import random
 random.seed(42069)
@@ -14,26 +16,41 @@ np.random.seed(42069)
 torch.manual_seed(42069)
 
 
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device = "cpu"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def get_features(x, model, preprocess, content_layers, style_layers):
-    content_features = []
-    style_features = []
+def gram(F):
+    return torch.matmul(F, F.t())
 
-    preprocess.crop_size = x.shape[1:]
-    preprocess.resize_size = x.shape[1:]
-    x = preprocess(x).unsqueeze(0)
 
-    for i, layer in enumerate(model):
-        x = layer(x)
-        if i in content_layers:
-            content_features.append(torch.reshape(x, (x.shape[1], -1)))
-        if i in style_layers:
-            style_features.append(torch.reshape(x, (x.shape[1], -1)))
+class Model(nn.Module):
 
-    return content_features, style_features
+    def __init__(self, pretrained_model, preprocess, content_layers, style_layers):
+        super().__init__()
+        self.pretrained_model = pretrained_model
+        self.preprocess = preprocess
+        self.content_layers = content_layers
+        self.style_layers = style_layers
+
+        for param in self.pretrained_model.parameters():
+            param.requires_grad = False
+
+    def forward(self, x):
+        content_features = []
+        style_features = []
+
+        x = self.preprocess(x).unsqueeze(0)
+
+        for i, layer in enumerate(self.pretrained_model):
+            x = layer(x)
+            if i in self.content_layers:
+                F = torch.reshape(x, (x.shape[1], -1))
+                content_features.append(F)
+            if i in self.style_layers:
+                F = torch.reshape(x, (x.shape[1], -1))
+                style_features.append(F)
+
+        return content_features, style_features
 
 
 def main():
@@ -42,59 +59,62 @@ def main():
         print(f"python {sys.argv[0]} <content_image> <style_image>")
         sys.exit()
 
-    weights = VGG19_Weights.DEFAULT
-    model = vgg19(weights=weights)
-    model = model.features
-    model.to(device)
-    model.eval()
+    pretrained_weights = VGG19_Weights.DEFAULT
+    pretrained_model = vgg19(weights=pretrained_weights).features
 
-    # for i in range(len(model.features)):
-        # if type(model.features[i]) == torch.nn.modules.conv.Conv2d and (i == 0 or type(model.features[i - 1]) == torch.nn.modules.pooling.MaxPool2d):
-            # print(i)
-        # print(type(model.features[i]))
-    # exit()
+    image_width = 400
+    image_height = 400
 
-    preprocess = weights.transforms()
+    preprocess = pretrained_weights.transforms()
+    preprocess.crop_size = [image_height, image_width]
+    preprocess.resize_size = [image_height, image_width]
 
-    content_layers = [0]
-    # style_layers = [0, 5, 10, 19, 28]
-    style_layers = [28]
+    content_layers = [21]
+    style_layers = [0, 5, 10, 19, 28]
 
     content_weight = 1
-    style_weight = 100
+    style_weight = 10000
+    weight_ratio = content_weight / style_weight
+
+    model = Model(pretrained_model, preprocess, content_layers, style_layers)
+    model.to(device)
 
     content_image_name = sys.argv[1]
     content_image_path = os.path.abspath(content_image_name)
     content_image = read_image(content_image_path)
+    content_image = resize(content_image, (image_height, image_width))
     content_image = content_image.to(device)
 
     with torch.no_grad():
-        content_features, _ = get_features(content_image, model, preprocess, content_layers, style_layers)
+        content_features, _ = model(content_image)
 
     style_image_name = sys.argv[2]
     style_image_path = os.path.abspath(style_image_name)
     style_image = read_image(style_image_path)
+    style_image = resize(style_image, (image_height, image_width))
     style_image = style_image.to(device)
 
     with torch.no_grad():
-        _, style_features = get_features(style_image, model, preprocess, style_layers, style_layers)
+        _, style_features = model(style_image)
+        for i in range(len(style_layers)):
+            style_features[i] = gram(style_features[i])
 
-    x = torch.rand(size=content_image.shape, dtype=torch.float32, device=device, requires_grad=True)
+    x = torch.rand(size=(3, image_height, image_width), dtype=torch.float32, device=device, requires_grad=True)
     x = x.to(device)
 
     optimizer = optim.LBFGS([x])
 
     plt.ion()
 
-    epochs = 2
-
     content_losses = []
     style_losses = []
     total_losses = []
 
-    for epoch in range(1, epochs + 1):
+
+    epochs = 100
+    for i in range(epochs):
         try:
-            def closure(epoch):
+            def closure():
                 with torch.no_grad():
                     x.clamp_(0, 1)
 
@@ -104,32 +124,33 @@ def main():
                 plt.imshow(image)
                 plt.pause(0.001)
 
-                x_content_features, x_style_features = get_features(x, model, preprocess, content_layers, style_layers)
+                x_content_features, x_style_features = model(x)
 
                 L_content = 0
-                # for i in range(len(content_layers)):
-                    # L_content += 0.5 * torch.sum((x_content_features[i] - content_features[i]) ** 2)
+                for i in range(len(content_layers)):
+                    L_content += torch.sum((x_content_features[i] - content_features[i]) ** 2) / 2
+                L_content /= len(content_layers)
 
                 L_style = 0
                 for i in range(len(style_layers)):
-                    G = torch.matmul(x_style_features[i], x_style_features[i].t())
-                    A = torch.matmul(style_features[i], style_features[i].t())
-                    N, M = x_style_features[i].shape
-                    L_style += 0.2 * torch.sum((G - A) ** 2) / (4 * N**2 * M**2)
+                    N = x_style_features[i].shape[0]
+                    M = image_height * image_width
+                    L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
+                L_style /= len(style_layers)
 
-                L = L_content * content_weight + L_style * style_weight
+                L = L_content * weight_ratio + L_style
                 L.backward()
 
                 content_losses.append(L_content)
                 style_losses.append(L_style)
                 total_losses.append(L)
 
+                print(f"Iteration: {len(total_losses):2d}, Total Loss: {total_losses[-1]:8.4f}")
+
                 return L
 
-            optimizer.step(lambda: closure(epoch))
+            optimizer.step(closure)
 
-            # print(f"Epoch: {epoch}, Content Loss: {content_losses[-1]}, Style Loss: {style_losses[-1]}, Total Loss: {total_losses[-1]}")
-            print(f"Epoch: {epoch}, Total Loss: {total_losses[-1]}")
 
         except KeyboardInterrupt:
             break
