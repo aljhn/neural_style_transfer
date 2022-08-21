@@ -32,6 +32,10 @@ class Model(nn.Module):
         self.content_layers = content_layers
         self.style_layers = style_layers
 
+        for i, layer in enumerate(self.pretrained_model):
+            if type(layer) == nn.MaxPool2d:
+                self.pretrained_model[i] = nn.AvgPool2d(kernel_size=layer.kernel_size, stride=layer.stride, padding=layer.padding, ceil_mode=layer.ceil_mode)
+
         for param in self.pretrained_model.parameters():
             param.requires_grad = False
 
@@ -73,8 +77,7 @@ def main():
     style_layers = [0, 5, 10, 19, 28]
 
     content_weight = 1
-    style_weight = 10000
-    weight_ratio = content_weight / style_weight
+    style_weight = 1000000000
 
     model = Model(pretrained_model, preprocess, content_layers, style_layers)
     model.to(device)
@@ -138,14 +141,14 @@ def main():
                     L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
                 L_style /= len(style_layers)
 
-                L = L_content * weight_ratio + L_style
+                L = L_content * content_weight + L_style * style_weight
                 L.backward()
 
                 content_losses.append(L_content)
                 style_losses.append(L_style)
                 total_losses.append(L)
 
-                print(f"Iteration: {len(total_losses):2d}, Total Loss: {total_losses[-1]:8.4f}")
+                print(f"Iteration: {len(total_losses):3d} | Total Loss: {total_losses[-1]:14,.3f}".replace(",", " "))
 
                 return L
 
