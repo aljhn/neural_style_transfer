@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision.models import vgg19, VGG19_Weights
 from torchvision.io import read_image
+from torchvision.utils import save_image
 from torchvision.transforms.functional import resize
 
 import random
@@ -32,6 +33,7 @@ class Model(nn.Module):
         self.content_layers = content_layers
         self.style_layers = style_layers
 
+        # Replace MaxPool with AveragePool by paper recommendation
         for i, layer in enumerate(self.pretrained_model):
             if type(layer) == nn.MaxPool2d:
                 self.pretrained_model[i] = nn.AvgPool2d(kernel_size=layer.kernel_size, stride=layer.stride, padding=layer.padding, ceil_mode=layer.ceil_mode)
@@ -70,6 +72,8 @@ def main():
     image_height = 400
 
     preprocess = pretrained_weights.transforms()
+
+    # Default image size is 224x224, so change manually
     preprocess.crop_size = [image_height, image_width]
     preprocess.resize_size = [image_height, image_width]
 
@@ -113,58 +117,56 @@ def main():
     style_losses = []
     total_losses = []
 
+    output_file_path = os.path.join(os.getcwd(), "NSTOutput")
+    if not os.path.isdir(output_file_path):
+        os.mkdir(output_file_path)
 
-    epochs = 100
-    for i in range(epochs):
+    def closure():
+        with torch.no_grad():
+            x.clamp_(0, 1)
+
+        image = x.detach().cpu()
+        if len(total_losses) % 10 == 0:
+            fp = os.path.join(output_file_path, f"image{len(total_losses)}.jpg")
+            save_image(image, fp, quality=75)
+
+        # image = image.numpy().transpose(1, 2, 0)
+        # plt.imshow(image)
+        # plt.pause(0.001)
+
+        optimizer.zero_grad()
+
+        x_content_features, x_style_features = model(x)
+
+        L_content = 0
+        for i in range(len(content_layers)):
+            L_content += torch.sum((x_content_features[i] - content_features[i]) ** 2) / 2
+        L_content /= len(content_layers)
+
+        L_style = 0
+        for i in range(len(style_layers)):
+            N = x_style_features[i].shape[0]
+            M = image_height * image_width
+            L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
+        L_style /= len(style_layers)
+
+        L = L_content * content_weight + L_style * style_weight
+        L.backward()
+
+        content_losses.append(L_content)
+        style_losses.append(L_style)
+        total_losses.append(L)
+
+        print(f"Iteration: {len(total_losses):3d} | Total Loss: {total_losses[-1]:14,.3f}".replace(",", " "))
+
+        return L
+
+    while True:
         try:
-            def closure():
-                with torch.no_grad():
-                    x.clamp_(0, 1)
-
-                optimizer.zero_grad()
-
-                image = x.detach().cpu().numpy().transpose(1, 2, 0)
-                plt.imshow(image)
-                plt.pause(0.001)
-
-                x_content_features, x_style_features = model(x)
-
-                L_content = 0
-                for i in range(len(content_layers)):
-                    L_content += torch.sum((x_content_features[i] - content_features[i]) ** 2) / 2
-                L_content /= len(content_layers)
-
-                L_style = 0
-                for i in range(len(style_layers)):
-                    N = x_style_features[i].shape[0]
-                    M = image_height * image_width
-                    L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
-                L_style /= len(style_layers)
-
-                L = L_content * content_weight + L_style * style_weight
-                L.backward()
-
-                content_losses.append(L_content)
-                style_losses.append(L_style)
-                total_losses.append(L)
-
-                print(f"Iteration: {len(total_losses):3d} | Total Loss: {total_losses[-1]:14,.3f}".replace(",", " "))
-
-                return L
-
             optimizer.step(closure)
-
 
         except KeyboardInterrupt:
             break
-
-    with torch.no_grad():
-        x = torch.clamp(x, 0, 1)
-
-    image = x.cpu().numpy().transpose(1, 2, 0)
-    plt.ioff()
-    plt.imshow(image)
-    plt.show()
 
 
 if __name__ == "__main__":
