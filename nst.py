@@ -81,7 +81,8 @@ def main():
     style_layers = [0, 5, 10, 19, 28]
 
     content_weight = 1
-    style_weight = 1000000000
+    style_weight = 1e10
+    total_variation_weight = 1e2
 
     model = Model(pretrained_model, preprocess, content_layers, style_layers)
     model.to(device)
@@ -106,7 +107,9 @@ def main():
         for i in range(len(style_layers)):
             style_features[i] = gram(style_features[i])
 
-    x = torch.rand(size=(3, image_height, image_width), dtype=torch.float32, device=device, requires_grad=True)
+    # x = torch.rand(size=(3, image_height, image_width), dtype=torch.float32, device=device, requires_grad=True)
+    x = torch.clone(content_image).float() / 255
+    x.requires_grad = True
     x = x.to(device)
 
     optimizer = optim.LBFGS([x])
@@ -115,6 +118,7 @@ def main():
 
     content_losses = []
     style_losses = []
+    tv_losses = []
     total_losses = []
 
     output_file_path = os.path.join(os.getcwd(), "NSTOutput")
@@ -145,19 +149,28 @@ def main():
 
         L_style = 0
         for i in range(len(style_layers)):
-            N = x_style_features[i].shape[0]
-            M = image_height * image_width
+            N, M = x_style_features[i].shape
             L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
         L_style /= len(style_layers)
 
-        L = L_content * content_weight + L_style * style_weight
+        # Total variation loss
+        high_pass_height = x[:, 1:, :] - x[:, :-1, :]
+        high_pass_width = x[:, :, 1:] - x[:, :, :-1]
+        total_variation_height = torch.mean(torch.abs(high_pass_height))
+        total_variation_width = torch.mean(torch.abs(high_pass_width))
+        L_total_variation = total_variation_height + total_variation_width
+        # L_total_variation = 0
+
+        L = L_content * content_weight + L_style * style_weight + L_total_variation * total_variation_weight
         L.backward()
 
         content_losses.append(L_content)
         style_losses.append(L_style)
+        tv_losses.append(L_total_variation)
         total_losses.append(L)
 
         print(f"Iteration: {len(total_losses):3d} | Total Loss: {total_losses[-1]:14,.3f}".replace(",", " "))
+        # print(f"Iteration: {len(total_losses):3d} | Content Loss: {content_losses[-1] * content_weight:14,.3f} | Style Loss: {style_losses[-1] * style_weight:14,.3f} | TV Loss: {tv_losses[-1] * total_variation_weight:14,.3f}".replace(",", " "))
 
         return L
 
