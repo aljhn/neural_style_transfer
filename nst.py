@@ -90,6 +90,7 @@ def main():
     content_image_name = sys.argv[1]
     content_image_path = os.path.abspath(content_image_name)
     content_image = read_image(content_image_path)
+    content_image_height, content_image_width = content_image.shape[1:]
     content_image = resize(content_image, (image_height, image_width))
     content_image = content_image.to(device)
 
@@ -132,7 +133,8 @@ def main():
         image = x.detach().cpu()
         if len(total_losses) % 10 == 0:
             fp = os.path.join(output_file_path, f"image{len(total_losses)}.jpg")
-            save_image(image, fp, quality=75)
+            output_image = resize(image, (content_image_height, content_image_width))
+            save_image(output_image, fp, quality=75)
 
         # image = image.numpy().transpose(1, 2, 0)
         # plt.imshow(image)
@@ -159,7 +161,6 @@ def main():
         total_variation_height = torch.mean(torch.abs(high_pass_height))
         total_variation_width = torch.mean(torch.abs(high_pass_width))
         L_total_variation = total_variation_height + total_variation_width
-        # L_total_variation = 0
 
         L = L_content * content_weight + L_style * style_weight + L_total_variation * total_variation_weight
         L.backward()
@@ -170,7 +171,6 @@ def main():
         total_losses.append(L)
 
         print(f"Iteration: {len(total_losses):3d} | Total Loss: {total_losses[-1]:14,.3f}".replace(",", " "))
-        # print(f"Iteration: {len(total_losses):3d} | Content Loss: {content_losses[-1] * content_weight:14,.3f} | Style Loss: {style_losses[-1] * style_weight:14,.3f} | TV Loss: {tv_losses[-1] * total_variation_weight:14,.3f}".replace(",", " "))
 
         return L
 
