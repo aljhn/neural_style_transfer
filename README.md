@@ -15,10 +15,36 @@ The algorithm is implemented in PyTorch using a VGG19 model pretrained on the 10
 
 Also includes a total variation loss component to minimize high-frequency noise in the generated image.
 
+### Examples
+
+<div align="center">
+ <table>
+  <tr>
+   <th>Content</th>
+   <th>Style</th>
+   <th></th>
+   <th>Output</th>
+  </tr>
+  <tr>
+   <td><img src="Images/Oslo.jpg" width="300" height="300"></td>
+   <td><img src="Images/StyleTransferImage.jpg" width="300" height="300"></td>
+   <td></td>
+   <td><img src="Images/Oslo_Styletransfer_nst_400.jpg" width="300" height="300"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Oslo.jpg" width="300" height="300"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="300"></td>
+   <td></td>
+   <td><img src="Images/Oslo_Starrynight_nst_410_evenmorestyle.jpg" width="300" height="300"></td>
+  </tr>
+ </table> 
+</div>
+
+
 ## Perceptual Losses for Real-Time Style Transfer and Super-Resolution
 
-TODO: [Johnson et al. \[2016\]](https://arxiv.org/abs/1603.08155)
+Faster version of NST by [Johnson et al. \[2016\]](https://arxiv.org/abs/1603.08155).
 
 ## Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization
 
-TODO: [Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868)
+[Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868)
