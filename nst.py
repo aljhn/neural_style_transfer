@@ -81,7 +81,7 @@ def main():
     style_layers = [0, 5, 10, 19, 28]
 
     content_weight = 1
-    style_weight = 1e10
+    style_weight = 1e8
     total_variation_weight = 1e2
 
     model = Model(pretrained_model, preprocess, content_layers, style_layers)

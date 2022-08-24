@@ -26,13 +26,13 @@ Also includes a total variation loss component to minimize high-frequency noise 
   </tr>
   <tr>
    <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
-   <td><img src="Images/StyleTransferImage.jpg" width="300" height="125"></td>
-   <td><img src="Images/Oslo_Styletransfer_nst_400.jpg" width="300" height="225"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/Oslo_StarryNight.jpg" width="300" height="225"></td>
   </tr>
   <tr>
    <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
-   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
-   <td><img src="Images/Oslo_Starrynight_nst_410_evenmorestyle.jpg" width="300" height="225"></td>
+   <td><img src="Images/StyleTransferImage.jpg" width="300" height="125"></td>
+   <td><img src="Images/NST/Oslo_StyleTransferImage.jpg" width="300" height="225"></td>
   </tr>
  </table> 
 </div>
