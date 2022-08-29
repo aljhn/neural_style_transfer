@@ -169,12 +169,24 @@ def train():
     transform_path = os.path.join(os.getcwd(), "FastModels")
     if not os.path.isdir(transform_path):
         os.mkdir(transform_path)
-    transform_path = os.path.join(transform_path, style + ".pt")
+    style_transform_path = os.path.join(transform_path, style + ".pt")
+
+    try:
+        with open(os.path.join(transform_path, "progress"), "r") as f:
+            e, i = f.readlines()
+            epoch_start = int(e)
+            iteration_start = int(i)
+
+            transform.load_state_dict(torch.load(style_transform_path))
+            transform.train()
+    except FileNotFoundError:
+        epoch_start = 1
+        iteration_start = 0
 
     epochs = 2
-    for epoch in range(1, epochs + 1):
+    for epoch in range(epoch_start, epochs + 1):
         try:
-            for iteration, (batch, _) in enumerate(dataloader):
+            for iteration, (batch, _) in enumerate(dataloader, iteration_start):
                 optimizer.zero_grad()
 
                 batch = batch.to(device)
@@ -208,13 +220,26 @@ def train():
 
                 print(f"Epoch: {epoch:2d} | Iteration: {iteration:5,d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
 
-                if iteration % 1000 == 0:
-                    torch.save(transform.state_dict(), transform_path)
+                if iteration % 100 == 0:
+                    torch.save(transform.state_dict(), style_transform_path)
+                    with open(os.path.join(transform_path, "progress"), "w") as f:
+                        f.write(str(epoch) + "\n")
+                        f.write(str(iteration))
+
+            iteration_start = 0
 
         except KeyboardInterrupt:
-            break
+            torch.save(transform.state_dict(), style_transform_path)
+            with open(os.path.join(transform_path, "progress"), "w") as f:
+                f.write(str(epoch) + "\n")
+                f.write(str(iteration))
 
-    torch.save(transform.state_dict(), transform_path)
+            sys.exit()
+
+    torch.save(transform.state_dict(), style_transform_path)
+    with open(os.path.join(transform_path, "progress"), "w") as f:
+        f.write(str(1) + "\n")
+        f.write(str(0))
 
 
 def apply():
@@ -225,11 +250,11 @@ def apply():
 
     style_image_name = sys.argv[2]
     style = style_image_name.split(".")[0]
-    transform_path = os.path.join(os.getcwd(), f"FastModels/{style}.pt")
+    style_transform_path = os.path.join(os.getcwd(), f"FastModels/{style}.pt")
 
     transform = Transform()
     try:
-        transform.load_state_dict(torch.load(transform_path))
+        transform.load_state_dict(torch.load(style_transform_path))
     except FileNotFoundError:
         print("Trained model not found. Exiting")
         sys.exit()
