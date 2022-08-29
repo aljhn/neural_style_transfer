@@ -1,0 +1,213 @@
+import sys
+import os
+import numpy as np
+
+import torch
+import torch.nn as nn
+from torch.optim import Adam
+from torch.utils.data import DataLoader
+from torchvision.models import vgg16, VGG16_Weights
+from torchvision.io import read_image
+from torchvision.utils import save_image
+from torchvision.datasets import CocoDetection
+from torchvision.transforms import Compose, ToTensor
+
+import random
+random.seed(42069)
+np.random.seed(42069)
+torch.manual_seed(42069)
+torch.cuda.manual_seed(42069)
+
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+def gram(F):
+    return torch.matmul(F, F.t())
+
+
+class Model(nn.Module):
+
+    def __init__(self, pretrained_model, preprocess, content_layers, style_layers):
+        super().__init__()
+        self.pretrained_model = pretrained_model
+        self.preprocess = preprocess
+        self.content_layers = content_layers
+        self.style_layers = style_layers
+
+        for i, layer in enumerate(self.pretrained_model):
+            if type(layer) == nn.MaxPool2d:
+                self.pretrained_model[i] = nn.AvgPool2d(kernel_size=layer.kernel_size, stride=layer.stride, padding=layer.padding, ceil_mode=layer.ceil_mode)
+
+        for param in self.pretrained_model.parameters():
+            param.requires_grad = False
+
+    def forward(self, x):
+        content_features = []
+        style_features = []
+
+        x = self.preprocess(x).unsqueeze(0)
+
+        for i, layer in enumerate(self.pretrained_model):
+            x = layer(x)
+            if i in self.content_layers:
+                F = torch.reshape(x, (x.shape[1], -1))
+                content_features.append(F)
+            if i in self.style_layers:
+                F = torch.reshape(x, (x.shape[1], -1))
+                style_features.append(F)
+
+        return content_features, style_features
+
+
+class Transform(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(1, 1)
+        )
+
+    def forward(self, x):
+        x = self.network(x)
+        with torch.no_grad():
+            x.clamp_(0, 1)
+        return x
+
+
+def train():
+    style_image_name = sys.argv[1]
+    style_image_path = os.path.abspath(style_image_name)
+    style_image = read_image(style_image_path)
+    style_image = style_image.to(device)
+
+    pretrained_weights = VGG16_Weights.DEFAULT
+    pretrained_model = vgg16(weights=pretrained_weights).features
+
+    image_height = 256
+    image_width = 256
+
+    preprocess = pretrained_weights.transforms()
+    preprocess.crop_size = [image_height, image_width]
+    preprocess.resize_size = [image_height, image_width]
+
+    content_layers = [15]
+    # content_layers = [8, 15, 22, 25, 29]
+    style_layers = [3, 8, 15, 22]
+
+    model = Model(pretrained_model, preprocess, content_layers, style_layers)
+    model.to(device)
+
+    _, style_features = model(style_image)
+    for i in range(len(style_layers)):
+        style_features[i] = gram(style_features[i])
+
+    transform = Transform()
+    transform.to(device)
+
+    optimizer = Adam(transform.parameters(), lr=1e-3)
+
+    data_transform = Compose([ToTensor()])
+    dataset = CocoDetection(root="~/Downloads/", annFile="~/Downloads/annotations.json", transform=data_transform)
+    dataloader = DataLoader(dataset, batch_size=4)
+    exit()
+
+    content_weight = 1
+    style_weight = 1e8
+    total_variation_weight = 1e2
+
+    epochs = 2
+    for epoch in range(1, epochs + 1):
+        for iteration, (batch, _) in enumerate(dataloader):
+            try:
+                optimizer.zero_grad()
+
+                batch = batch.to(device)
+                content_features, _ = model(batch)
+
+                x = transform(batch)
+                x_content_features, x_style_features = model(x)
+                exit()
+
+                L_content = 0
+                for i in range(len(content_layers)):
+                    L_content += torch.sum((x_content_features[i] - content_features[i]) ** 2) / 2
+                L_content /= len(content_layers)
+
+                L_style = 0
+                for i in range(len(style_layers)):
+                    N, M = x_style_features[i].shape
+                    L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
+                L_style /= len(style_layers)
+
+                # Total variation loss
+                high_pass_height = x[:, 1:, :] - x[:, :-1, :]
+                high_pass_width = x[:, :, 1:] - x[:, :, :-1]
+                total_variation_height = torch.mean(torch.abs(high_pass_height))
+                total_variation_width = torch.mean(torch.abs(high_pass_width))
+                L_total_variation = total_variation_height + total_variation_width
+
+                L = L_content * content_weight + L_style * style_weight + L_total_variation * total_variation_weight
+                L.backward()
+
+                optimizer.step()
+
+                print(f"Epoch: {epoch:2d} | Iteration: {iteration:5d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
+
+            except KeyboardInterrupt:
+                break
+
+    style = style_image_name.split(".")[0]
+    transform_path = os.path.join(os.getcwd(), f"FastModels/{style}.pt")
+    torch.save(transform.state_dict(), transform_path)
+
+
+def apply():
+    content_image_name = sys.argv[1]
+    content_image_path = os.path.abspath(content_image_name)
+    content_image = read_image(content_image_path)
+    content_image = content_image.to(device)
+
+    style_image_name = sys.argv[2]
+    style = style_image_name.split(".")[0]
+    transform_path = os.path.join(os.getcwd(), f"FastModels/{style}.pt")
+
+    transform = Transform()
+    try:
+        transform.load_state_dict(torch.load(transform_path))
+    except FileNotFoundError:
+        print("Trained model not found. Exiting")
+        sys.exit()
+
+    transform.eval()
+    transform = transform.to(device)
+
+    output = transform(content_image)
+    output_image = output.detach().cpu()
+
+    output_file_path = os.path.join(os.getcwd(), "FastNSTOutput")
+    if not os.path.isdir(output_file_path):
+        os.mkdir(output_file_path)
+
+    content = content_image_name.split(".")[0]
+
+    fp = os.path.join(output_file_path, f"{content}_{style}.jpg")
+    save_image(output_image, fp, quality=75)
+
+
+def main():
+    if len(sys.argv) == 2:
+        train()
+    elif len(sys.argv) == 3:
+        apply()
+    else:
+        print("Argument error.")
+        print("To train on a new style:")
+        print(f"python {sys.argv[0]} <style_image>")
+        print()
+        print("To apply a trained style to an image:")
+        print(f"python {sys.argv[0]} <content_image> <style_image>")
+
+
+if __name__ == "__main__":
+    main()

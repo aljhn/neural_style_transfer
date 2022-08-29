@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
+from torch.optim import LBFGS
 from torchvision.models import vgg19, VGG19_Weights
 from torchvision.io import read_image
 from torchvision.utils import save_image
@@ -15,6 +15,7 @@ import random
 random.seed(42069)
 np.random.seed(42069)
 torch.manual_seed(42069)
+torch.cuda.manual_seed(42069)
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -113,7 +114,7 @@ def main():
     x.requires_grad = True
     x = x.to(device)
 
-    optimizer = optim.LBFGS([x])
+    optimizer = LBFGS([x])
 
     plt.ion()
 
