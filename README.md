@@ -79,12 +79,12 @@ Also includes the small improvement of replacing the batch normalization layers 
   <tr>
    <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/NST/StarryNight_Kanagawa.jpg" width="300" height="238"></td>
+   <td><img src="Images/FastNST/StarryNight_Kanagawa.jpg" width="300" height="238"></td>
   </tr>
   <tr>
    <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/NST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
+   <td><img src="Images/FastNST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
   </tr>
  </table> 
 </div>
