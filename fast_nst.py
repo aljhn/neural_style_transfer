@@ -159,11 +159,17 @@ def train():
 
     data_transform = Compose([Resize((image_height, image_width)), ToTensor()])
     dataset = ImageFolder(root="~/Downloads/", transform=data_transform)
-    dataloader = DataLoader(dataset, batch_size=4)
+    dataloader = DataLoader(dataset, batch_size=5)
 
     content_weight = 1
     style_weight = 1e8
     total_variation_weight = 1e2
+
+    style = style_image_name.split(".")[0]
+    transform_path = os.path.join(os.getcwd(), "FastModels")
+    if not os.path.isdir(transform_path):
+        os.mkdir(transform_path)
+    transform_path = os.path.join(transform_path, style + ".pt")
 
     epochs = 2
     for epoch in range(1, epochs + 1):
@@ -200,16 +206,14 @@ def train():
 
                 optimizer.step()
 
-                print(f"Epoch: {epoch:2d} | Iteration: {iteration:5d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
+                print(f"Epoch: {epoch:2d} | Iteration: {iteration:5,d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
+
+                if iteration % 1000 == 0:
+                    torch.save(transform.state_dict(), transform_path)
 
         except KeyboardInterrupt:
             break
 
-    style = style_image_name.split(".")[0]
-    transform_path = os.path.join(os.getcwd(), "FastModels")
-    if not os.path.isdir(transform_path):
-        os.mkdir(transform_path)
-    transform_path = os.path.join(transform_path, style + ".pt")
     torch.save(transform.state_dict(), transform_path)
 
 
