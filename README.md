@@ -47,6 +47,18 @@ Also includes a total variation loss component to minimize high-frequency noise 
 
 Faster version of NST by [Johnson et al. \[2016\]](https://arxiv.org/abs/1603.08155).
 
+<img src="Images/FastArchitecture.jpg" width="600">
+
+Works by training an image transformation network that takes a content image as input and outputs the same image in the chosen style.
+The transformation network is trained by using the same set of loss functions as the original version. The pretrained VGG16 network is chosen for generating the features.
+The optimization target is now the parameters of the transformation network instead of targeting the generated image directly.
+
+The unlabeled COCO dataset is used for training the network. The images in the dataset are used as content images, while the style image is chosen per model.
+This means that a separate transformation network must be trained for each style image,
+but with the advantage that the transformation network can be applied to any image instantly instead of solving an optimization problem each time.
+
+Also includes the small improvement of replacing the batch normalization layers with instance normalization as proposed by [Ulyanov et al. \[2016\]](https://arxiv.org/abs/1607.08022).
+
 ## Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization
 
 [Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868)

@@ -9,8 +9,9 @@ from torch.utils.data import DataLoader
 from torchvision.models import vgg16, VGG16_Weights
 from torchvision.io import read_image
 from torchvision.utils import save_image
-from torchvision.datasets import CocoDetection
-from torchvision.transforms import Compose, ToTensor
+from torchvision.datasets import ImageFolder
+from torchvision.transforms import Compose, Resize, ToTensor
+from torchvision.transforms.functional import resize
 
 import random
 random.seed(42069)
@@ -23,7 +24,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def gram(F):
-    return torch.matmul(F, F.t())
+    return torch.matmul(F, F.transpose(1, 2))
 
 
 class Model(nn.Module):
@@ -46,18 +47,58 @@ class Model(nn.Module):
         content_features = []
         style_features = []
 
-        x = self.preprocess(x).unsqueeze(0)
+        batch_size = x.shape[0]
+
+        x = self.preprocess(x)
 
         for i, layer in enumerate(self.pretrained_model):
             x = layer(x)
             if i in self.content_layers:
-                F = torch.reshape(x, (x.shape[1], -1))
+                F = torch.reshape(x, (batch_size, x.shape[1], -1))
                 content_features.append(F)
             if i in self.style_layers:
-                F = torch.reshape(x, (x.shape[1], -1))
+                F = torch.reshape(x, (batch_size, x.shape[1], -1))
                 style_features.append(F)
 
         return content_features, style_features
+
+
+class ConvBlock(nn.Module):
+
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, use_relu=True):
+        super().__init__()
+
+        if stride >= 1:
+            layers = [nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding)]
+        else:
+            stride = int(1 / stride)
+            layers = [nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, output_padding=stride - 1)]
+
+        layers.append(nn.InstanceNorm2d(num_features=out_channels, affine=True))
+
+        if use_relu:
+            layers.append(nn.ReLU())
+
+        self.block = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class ResBlock(nn.Module):
+
+    def __init__(self, channels):
+        super().__init__()
+        self.block = nn.Sequential(
+            ConvBlock(channels, channels),
+            ConvBlock(channels, channels, use_relu=False)
+        )
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = x + self.block(x)
+        x = self.relu(x)
+        return x
 
 
 class Transform(nn.Module):
@@ -65,27 +106,36 @@ class Transform(nn.Module):
     def __init__(self):
         super().__init__()
         self.network = nn.Sequential(
-            nn.Linear(1, 1)
+            ConvBlock(3, 50, kernel_size=9, stride=2, padding=4),
+            ConvBlock(50, 100, stride=2),
+            ResBlock(100),
+            ResBlock(100),
+            ResBlock(100),
+            ResBlock(100),
+            ResBlock(100),
+            ConvBlock(100, 50, kernel_size=3, stride=0.5),
+            ConvBlock(50, 3, kernel_size=9, stride=0.5, padding=4, use_relu=False),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
         x = self.network(x)
-        with torch.no_grad():
-            x.clamp_(0, 1)
         return x
 
 
 def train():
+    image_height = 256
+    image_width = 256
+
     style_image_name = sys.argv[1]
     style_image_path = os.path.abspath(style_image_name)
     style_image = read_image(style_image_path)
+    style_image = resize(style_image, (image_height, image_width))
+    style_image = style_image.unsqueeze(0)
     style_image = style_image.to(device)
 
     pretrained_weights = VGG16_Weights.DEFAULT
     pretrained_model = vgg16(weights=pretrained_weights).features
-
-    image_height = 256
-    image_width = 256
 
     preprocess = pretrained_weights.transforms()
     preprocess.crop_size = [image_height, image_width]
@@ -107,10 +157,9 @@ def train():
 
     optimizer = Adam(transform.parameters(), lr=1e-3)
 
-    data_transform = Compose([ToTensor()])
-    dataset = CocoDetection(root="~/Downloads/", annFile="~/Downloads/annotations.json", transform=data_transform)
+    data_transform = Compose([Resize((image_height, image_width)), ToTensor()])
+    dataset = ImageFolder(root="~/Downloads/", transform=data_transform)
     dataloader = DataLoader(dataset, batch_size=4)
-    exit()
 
     content_weight = 1
     style_weight = 1e8
@@ -118,8 +167,8 @@ def train():
 
     epochs = 2
     for epoch in range(1, epochs + 1):
-        for iteration, (batch, _) in enumerate(dataloader):
-            try:
+        try:
+            for iteration, (batch, _) in enumerate(dataloader):
                 optimizer.zero_grad()
 
                 batch = batch.to(device)
@@ -127,7 +176,6 @@ def train():
 
                 x = transform(batch)
                 x_content_features, x_style_features = model(x)
-                exit()
 
                 L_content = 0
                 for i in range(len(content_layers)):
@@ -136,13 +184,13 @@ def train():
 
                 L_style = 0
                 for i in range(len(style_layers)):
-                    N, M = x_style_features[i].shape
+                    N, M = x_style_features[i].shape[1:]
                     L_style += torch.sum((gram(x_style_features[i]) - style_features[i]) ** 2) / (4 * N**2 * M**2)
                 L_style /= len(style_layers)
 
                 # Total variation loss
-                high_pass_height = x[:, 1:, :] - x[:, :-1, :]
-                high_pass_width = x[:, :, 1:] - x[:, :, :-1]
+                high_pass_height = x[:, :, 1:, :] - x[:, :, :-1, :]
+                high_pass_width = x[:, :, :, 1:] - x[:, :, :, :-1]
                 total_variation_height = torch.mean(torch.abs(high_pass_height))
                 total_variation_width = torch.mean(torch.abs(high_pass_width))
                 L_total_variation = total_variation_height + total_variation_width
@@ -154,18 +202,21 @@ def train():
 
                 print(f"Epoch: {epoch:2d} | Iteration: {iteration:5d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
 
-            except KeyboardInterrupt:
-                break
+        except KeyboardInterrupt:
+            break
 
     style = style_image_name.split(".")[0]
-    transform_path = os.path.join(os.getcwd(), f"FastModels/{style}.pt")
+    transform_path = os.path.join(os.getcwd(), "FastModels")
+    if not os.path.isdir(transform_path):
+        os.mkdir(transform_path)
+    transform_path = os.path.join(transform_path, style + ".pt")
     torch.save(transform.state_dict(), transform_path)
 
 
 def apply():
     content_image_name = sys.argv[1]
     content_image_path = os.path.abspath(content_image_name)
-    content_image = read_image(content_image_path)
+    content_image = read_image(content_image_path).float() / 255
     content_image = content_image.to(device)
 
     style_image_name = sys.argv[2]
@@ -179,7 +230,7 @@ def apply():
         print("Trained model not found. Exiting")
         sys.exit()
 
-    transform.eval()
+    # transform.eval() # Keep instance normalization also when aplying the network
     transform = transform.to(device)
 
     output = transform(content_image)
