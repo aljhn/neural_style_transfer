@@ -62,6 +62,35 @@ but with the advantage that the transformation network can be applied to any ima
 
 Also includes the small improvement of replacing the batch normalization layers with instance normalization as proposed by [Ulyanov et al. \[2016\]](https://arxiv.org/abs/1607.08022).
 
+### Examples
+
+<div align="center">
+ <table>
+  <tr>
+   <th>Content</th>
+   <th>Style</th>
+   <th>Output</th>
+  </tr>
+  <tr>
+   <td><img src="Images/JC.jpg" width="300" height="300"></td>
+   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
+   <td><img src="Images/FastNST/JC_Kanagawa.jpg" width="300" height="300"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
+   <td><img src="Images/NST/StarryNight_Kanagawa.jpg" width="300" height="238"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
+   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
+   <td><img src="Images/NST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
+  </tr>
+ </table> 
+</div>
+
+
+
 ## Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization
 
 [Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868)
