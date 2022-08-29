@@ -47,11 +47,14 @@ Also includes a total variation loss component to minimize high-frequency noise 
 
 Faster version of NST by [Johnson et al. \[2016\]](https://arxiv.org/abs/1603.08155).
 
-<img src="Images/FastArchitecture.jpg" width="600">
+<div align="center">
+ <img src="Images/FastArchitecture.png" width="600">
+ <p>Fast NST training architecture. Input image and content image are the same for NST.</p>
+</div>
 
 Works by training an image transformation network that takes a content image as input and outputs the same image in the chosen style.
 The transformation network is trained by using the same set of loss functions as the original version. The pretrained VGG16 network is chosen for generating the features.
-The optimization target is now the parameters of the transformation network instead of targeting the generated image directly.
+The optimization is now done with Adam with the parameters of the transformation network as the target instead of the generated image directly.
 
 The unlabeled COCO dataset is used for training the network. The images in the dataset are used as content images, while the style image is chosen per model.
 This means that a separate transformation network must be trained for each style image,
