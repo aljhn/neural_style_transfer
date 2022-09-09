@@ -132,4 +132,4 @@ dmypy.json
 *.png
 *.pt
 
-FastModels/progress
+Models/progress

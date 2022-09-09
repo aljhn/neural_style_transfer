@@ -158,21 +158,21 @@ def train():
     optimizer = Adam(transform.parameters(), lr=1e-3)
 
     data_transform = Compose([Resize((image_height, image_width)), ToTensor()])
-    dataset = ImageFolder(root="~/Downloads/", transform=data_transform)
+    dataset = ImageFolder(root="~/Downloads/MSCOCO/", transform=data_transform)
     dataloader = DataLoader(dataset, batch_size=5)
 
     content_weight = 1
-    style_weight = 1e8
-    total_variation_weight = 1e2
+    style_weight = 1e9
+    total_variation_weight = 1e3
 
     style = style_image_name.split(".")[0]
-    transform_path = os.path.join(os.getcwd(), "FastModels")
+    transform_path = os.path.join(os.getcwd(), "Models")
     if not os.path.isdir(transform_path):
         os.mkdir(transform_path)
     style_transform_path = os.path.join(transform_path, style + ".pt")
 
     try:
-        with open(os.path.join(transform_path, "progress"), "r") as f:
+        with open(os.path.join(transform_path, "progress_" + style), "r") as f:
             e, i = f.readlines()
             epoch_start = int(e)
             iteration_start = int(i)
@@ -222,7 +222,7 @@ def train():
 
                 if iteration % 100 == 0:
                     torch.save(transform.state_dict(), style_transform_path)
-                    with open(os.path.join(transform_path, "progress"), "w") as f:
+                    with open(os.path.join(transform_path, "progress_" + style), "w") as f:
                         f.write(str(epoch) + "\n")
                         f.write(str(iteration))
 
@@ -230,14 +230,14 @@ def train():
 
         except KeyboardInterrupt:
             torch.save(transform.state_dict(), style_transform_path)
-            with open(os.path.join(transform_path, "progress"), "w") as f:
+            with open(os.path.join(transform_path, "progress_" + style), "w") as f:
                 f.write(str(epoch) + "\n")
                 f.write(str(iteration))
 
             sys.exit()
 
     torch.save(transform.state_dict(), style_transform_path)
-    with open(os.path.join(transform_path, "progress"), "w") as f:
+    with open(os.path.join(transform_path, "progress_" + style), "w") as f:
         f.write(str(1) + "\n")
         f.write(str(0))
 
@@ -250,7 +250,7 @@ def apply():
 
     style_image_name = sys.argv[2]
     style = style_image_name.split(".")[0]
-    style_transform_path = os.path.join(os.getcwd(), f"FastModels/{style}.pt")
+    style_transform_path = os.path.join(os.getcwd(), f"Models/{style}.pt")
 
     transform = Transform()
     try:
