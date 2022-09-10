@@ -93,7 +93,7 @@ Also includes the small improvement of replacing the batch normalization layers 
 
 ## Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization
 
-Arbitrary versio by [Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868).
+Arbitrary version by [Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868).
 Generalizes the Fast NST model to work with any style and content images.
 
 <div align="center">

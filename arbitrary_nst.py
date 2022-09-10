@@ -11,14 +11,16 @@ from torchvision.models import vgg19, VGG19_Weights
 from torchvision.io import read_image
 from torchvision.utils import save_image
 from torchvision.datasets import ImageFolder
-from torchvision.transforms import Compose, Resize, ToTensor
-from torchvision.transforms.functional import resize
+from torchvision.transforms import Compose, Resize, RandomCrop, ToTensor
 
 import random
 random.seed(42069)
 np.random.seed(42069)
 torch.manual_seed(42069)
 torch.cuda.manual_seed(42069)
+
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -91,22 +93,21 @@ class Decoder(nn.Module):
             if i == encoder.final_layer:
                 break
 
-        self.network = nn.Sequential(*reversed(layers))
+        self.network = nn.Sequential(*reversed(layers), nn.Sigmoid())
 
     def forward(self, x):
         return self.network(x)
 
 
 def train():
-    image_height = 256
-    image_width = 256
+    image_size = 256
 
     pretrained_weights = VGG19_Weights.DEFAULT
     pretrained_model = vgg19(weights=pretrained_weights).features
 
     preprocess = pretrained_weights.transforms()
-    preprocess.crop_size = [image_height, image_width]
-    preprocess.resize_size = [image_height, image_width]
+    preprocess.crop_size = [image_size, image_size]
+    preprocess.resize_size = [image_size, image_size]
 
     final_layer = 19
     style_layers = [1, 6, 10, 19]
@@ -122,9 +123,9 @@ def train():
 
     optimizer = Adam(decoder.parameters(), lr=1e-3)
 
-    batch_size = 5
+    batch_size = 2
 
-    data_transform = Compose([Resize((image_height, image_width)), ToTensor()]) # TODO: scale and crop properly
+    data_transform = Compose([Resize(image_size * 2), RandomCrop(image_size), ToTensor()])
     dataset_content = ImageFolder(root="~/Downloads/MSCOCO/", transform=data_transform)
     dataset_style = ImageFolder(root="~/Downloads/WikiArt/", transform=data_transform)
     dataloader_content = DataLoader(dataset_content, batch_size=batch_size)
@@ -138,13 +139,13 @@ def train():
     model_path = os.path.join(path, "arbitrary.pt")
 
     try:
-        with open(progress_path) as f:
+        with open(progress_path, "r") as f:
             e, i = f.readlines()
             epoch_start = int(e)
             iteration_start = int(i)
 
-            decoder.load_state_dict(torch.load(model_path))
-            decoder.train()
+        decoder.load_state_dict(torch.load(model_path))
+        decoder.train()
     except FileNotFoundError:
         epoch_start = 1
         iteration_start = 0
@@ -156,9 +157,11 @@ def train():
     epochs = 2
     for epoch in range(epoch_start, epochs + 1):
         try:
-            iteration_start = len(dataloader_content) - 10
             for iteration, (batch_content, _) in enumerate(dataloader_content, iteration_start):
                 batch_style, _ = next(dataloader_style_iterator)
+
+                batch_style = batch_style.to(device)
+                batch_content = batch_content.to(device)
 
                 optimizer.zero_grad()
 
@@ -186,11 +189,10 @@ def train():
                 optimizer.step()
 
                 print(f"Epoch: {epoch:2d} | Iteration: {iteration:5,d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
-                exit()
 
                 if iteration % 100 == 0:
                     torch.save(decoder.state_dict(), model_path)
-                    with open(progress_path) as f:
+                    with open(progress_path, "w") as f:
                         f.write(str(epoch) + "\n")
                         f.write(str(iteration))
 
@@ -198,7 +200,7 @@ def train():
 
         except KeyboardInterrupt:
             torch.save(decoder.state_dict(), model_path)
-            with open(progress_path) as f:
+            with open(progress_path, "w") as f:
                 f.write(str(epoch) + "\n")
                 f.write(str(iteration))
 
@@ -211,7 +213,66 @@ def train():
 
 
 def apply():
-    pass
+    content_image_name = sys.argv[1]
+    content_image_path = os.path.abspath(content_image_name)
+    content_image = read_image(content_image_path).float() / 255
+    content_image = content_image.unsqueeze(0)
+    content_image = content_image.to(device)
+
+    image_height, image_width = content_image.shape[2:4]
+
+    style_image_name = sys.argv[2]
+    style_image_path = os.path.abspath(style_image_name)
+    style_image = read_image(style_image_path).float() / 255
+    style_image = style_image.unsqueeze(0)
+    style_image = style_image.to(device)
+
+    pretrained_weights = VGG19_Weights.DEFAULT
+    pretrained_model = vgg19(weights=pretrained_weights).features
+
+    preprocess = pretrained_weights.transforms()
+    preprocess.crop_size = [image_height, image_width]
+    preprocess.resize_size = [image_height, image_width]
+
+    final_layer = 19
+    style_layers = [1, 6, 10, 19]
+
+    encoder = Encoder(pretrained_model, preprocess, final_layer, style_layers)
+    encoder.to(device)
+
+    decoder = Decoder(encoder)
+    decoder.to(device)
+
+    adain = AdaIN()
+    adain.to(device)
+
+    path = os.path.join(os.getcwd(), "Models")
+    if not os.path.isdir(path):
+        os.mkdir(path)
+    model_path = os.path.join(path, "arbitrary.pt")
+
+    try:
+        decoder.load_state_dict(torch.load(model_path))
+    except FileNotFoundError:
+        pass
+
+    with torch.no_grad():
+        f_c, _ = encoder(content_image)
+        f_s, _ = encoder(style_image)
+        t = adain(f_c, f_s)
+        g_t = decoder(t)
+
+    output_image = g_t.cpu().squeeze(0)
+
+    output_file_path = os.path.join(os.getcwd(), "ArbitraryNSTOutput")
+    if not os.path.isdir(output_file_path):
+        os.mkdir(output_file_path)
+
+    content = content_image_name.split(".")[0]
+    style = style_image_name.split(".")[0]
+
+    fp = os.path.join(output_file_path, f"{content}_{style}.jpg")
+    save_image(output_image, fp)
 
 
 def main():

@@ -272,7 +272,7 @@ def apply():
     content = content_image_name.split(".")[0]
 
     fp = os.path.join(output_file_path, f"{content}_{style}.jpg")
-    save_image(output_image, fp, quality=75)
+    save_image(output_image, fp)
 
 
 def main():

@@ -135,7 +135,7 @@ def main():
         if len(total_losses) % 10 == 0:
             fp = os.path.join(output_file_path, f"image{len(total_losses)}.jpg")
             output_image = resize(image, (content_image_height, content_image_width))
-            save_image(output_image, fp, quality=75)
+            save_image(output_image, fp)
 
         # image = image.numpy().transpose(1, 2, 0)
         # plt.imshow(image)
