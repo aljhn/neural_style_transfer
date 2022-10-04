@@ -90,7 +90,6 @@ Also includes the small improvement of replacing the batch normalization layers 
 </div>
 
 
-
 ## Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization
 
 Arbitrary version by [Huang et al. \[2017\]](https://arxiv.org/abs/1703.06868).
@@ -100,3 +99,13 @@ Generalizes the Fast NST model to work with any style and content images.
  <img src="Images/ArbitraryArchitecture.png" width="600">
  <p>Arbitrary NST training architecture.</p>
 </div>
+
+
+## Arbitrary Style Transfer with Style-Attentional Networks
+
+[Park et al. \[2018\]](https://arxiv.org/abs/1812.02342)
+
+
+## AdaAttN: Revisit Attention Mechanism in Arbitrary Neural Style Transfer
+
+[Liu et al. \[2021\]](https://arxiv.org/abs/2108.03647)
