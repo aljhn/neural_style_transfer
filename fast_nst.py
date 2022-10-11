@@ -69,10 +69,14 @@ class ConvBlock(nn.Module):
         super().__init__()
 
         if stride >= 1:
-            layers = [nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding)]
+            layers = [nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, padding_mode="reflect")]
         else:
             stride = int(1 / stride)
-            layers = [nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, output_padding=stride - 1)]
+            # layers = [nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, output_padding=stride - 1, padding_mode="reflect")]
+            layers = [
+                nn.Upsample(scale_factor=stride, mode="nearest"),
+                nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=padding, padding_mode="reflect")
+            ]
 
         layers.append(nn.InstanceNorm2d(num_features=out_channels, affine=True))
 
@@ -106,16 +110,17 @@ class Transform(nn.Module):
     def __init__(self):
         super().__init__()
         self.network = nn.Sequential(
-            ConvBlock(3, 50, kernel_size=9, stride=2, padding=4),
-            ConvBlock(50, 100, stride=2),
-            ResBlock(100),
-            ResBlock(100),
-            ResBlock(100),
-            ResBlock(100),
-            ResBlock(100),
-            ConvBlock(100, 50, kernel_size=3, stride=0.5),
-            ConvBlock(50, 3, kernel_size=9, stride=0.5, padding=4, use_relu=False),
-            nn.Sigmoid()
+            ConvBlock(3, 32, kernel_size=9, stride=2, padding=4),
+            ConvBlock(32, 64, kernel_size=3, stride=2),
+            ConvBlock(64, 128, kernel_size=3, stride=2),
+            ResBlock(128),
+            ResBlock(128),
+            ResBlock(128),
+            ResBlock(128),
+            ResBlock(128),
+            ConvBlock(128, 64, kernel_size=3, stride=0.5),
+            ConvBlock(64, 32, kernel_size=3, stride=0.5),
+            ConvBlock(32, 3, kernel_size=9, stride=0.5, padding=4, use_relu=False),
         )
 
     def forward(self, x):
@@ -193,6 +198,9 @@ def train():
                 content_features, _ = model(batch)
 
                 x = transform(batch)
+                print(batch.shape)
+                print(x.shape)
+                exit()
                 x_content_features, x_style_features = model(x)
 
                 L_content = 0
