@@ -19,8 +19,9 @@ np.random.seed(42069)
 torch.manual_seed(42069)
 torch.cuda.manual_seed(42069)
 
-from PIL import ImageFile
+from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+Image.MAX_IMAGE_PIXELS = None
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -93,7 +94,8 @@ class Decoder(nn.Module):
             if i == encoder.final_layer:
                 break
 
-        self.network = nn.Sequential(*reversed(layers), nn.Sigmoid())
+        # self.network = nn.Sequential(*reversed(layers), nn.Sigmoid())
+        self.network = nn.Sequential(*reversed(layers))
 
     def forward(self, x):
         return self.network(x)
@@ -121,13 +123,15 @@ def train():
     adain = AdaIN()
     adain.to(device)
 
-    optimizer = Adam(decoder.parameters(), lr=1e-3)
+    optimizer = Adam(decoder.parameters(), lr=1e-4)
 
-    batch_size = 2
+    batch_size = 5
 
     data_transform = Compose([Resize(image_size * 2), RandomCrop(image_size), ToTensor()])
-    dataset_content = ImageFolder(root="~/Downloads/MSCOCO/", transform=data_transform)
-    dataset_style = ImageFolder(root="~/Downloads/WikiArt/", transform=data_transform)
+    #dataset_content = ImageFolder(root="~/Downloads/MSCOCO/", transform=data_transform)
+    dataset_content = ImageFolder(root="/datasets/MSCOCO/", transform=data_transform)
+    #dataset_style = ImageFolder(root="~/Downloads/WikiArt/", transform=data_transform)
+    dataset_style = ImageFolder(root="/datasets/WikiArt/", transform=data_transform)
     dataloader_content = DataLoader(dataset_content, batch_size=batch_size)
     dataloader_style = DataLoader(dataset_style, batch_size=batch_size, shuffle=True)
     dataloader_style_iterator = iter(dataloader_style)
@@ -150,10 +154,10 @@ def train():
         epoch_start = 1
         iteration_start = 0
 
-    style_weight = 1e2
+    style_weight = 1e-1
 
     mse = nn.MSELoss()
-
+    
     epochs = 2
     for epoch in range(epoch_start, epochs + 1):
         try:
@@ -162,13 +166,15 @@ def train():
 
                 batch_style = batch_style.to(device)
                 batch_content = batch_content.to(device)
-
+                
                 optimizer.zero_grad()
 
                 f_c, _ = encoder(batch_content)
                 f_s, f_s_styles = encoder(batch_style)
 
                 t = adain(f_c, f_s)
+                if torch.isnan(t).any():
+                    continue
 
                 g_t = decoder(t)
 
@@ -180,14 +186,14 @@ def train():
                 for i in range(len(style_layers)):
                     f_s_std, f_s_mean = torch.std_mean(input=f_s_styles[i], dim=(2, 3), unbiased=True)
                     f_g_t_std, f_g_t_mean = torch.std_mean(input=f_g_t_styles[i], dim=(2, 3), unbiased=True)
-                    L_style += mse(f_s_mean, f_g_t_std) + mse(f_s_std, f_g_t_std)
+                    L_style += mse(f_s_mean, f_g_t_mean) + mse(f_s_std, f_g_t_std)
                 L_style /= len(style_layers)
 
                 L = L_content + style_weight * L_style
                 L.backward()
 
                 optimizer.step()
-
+                
                 print(f"Epoch: {epoch:2d} | Iteration: {iteration:5,d} | Total Loss: {L.item():14,.3f}".replace(",", " "))
 
                 if iteration % 100 == 0:

@@ -56,7 +56,7 @@ Works by training an image transformation network that takes a content image as 
 The transformation network is trained by using the same set of loss functions as the original version. The pretrained VGG16 network is chosen for generating the features.
 The optimization is now done with Adam with the parameters of the transformation network as the target instead of the generated image directly.
 
-The unlabeled COCO dataset is used for training the network. The images in the dataset are used as content images, while the style image is chosen per model.
+The unlabeled MSCOCO dataset is used for training the network. The images in the dataset are used as content images, while the style image is chosen per model.
 This means that a separate transformation network must be trained for each style image,
 but with the advantage that the transformation network can be applied to any image instantly instead of solving an optimization problem each time.
 
@@ -100,12 +100,25 @@ Generalizes the Fast NST model to work with any style and content images.
  <p>Arbitrary NST training architecture.</p>
 </div>
 
+Creates a model based on the pretrained VGG19 model as a feature encoder, followed by the Adaptive Instance Normalization (AdaIN) layer and a custom decoder network.
+The AdaIN layer transforms the mean and variance of the content image features to be the same as the features from the style image.
+These transformed features are then sent into the decoder to get the stylized content image.
+The decoder is trained by minimizing the difference between the VGG19 features of the transformed image and the content image (content loss),
+and VGG19 features from multiple different layers of the tranformed image and the style image (style loss).
+
+The model is then able to be applied to any content image and style image, unlike the fast NST which trains a separate model for each style image.
+
+The model is trained on the unlabeled MSCOCO dataset for content images and the WikiArt dataset for style images.
 
 ## Arbitrary Style Transfer with Style-Attentional Networks
 
 [Park et al. \[2018\]](https://arxiv.org/abs/1812.02342)
 
+TODO
+
 
 ## AdaAttN: Revisit Attention Mechanism in Arbitrary Neural Style Transfer
 
 [Liu et al. \[2021\]](https://arxiv.org/abs/2108.03647)
+
+TODO
