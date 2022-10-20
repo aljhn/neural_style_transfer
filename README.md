@@ -35,9 +35,29 @@ Also includes a total variation loss component to minimize high-frequency noise 
    <td><img src="Images/NST/Oslo_StyleTransferImage.jpg" width="300" height="225"></td>
   </tr>
   <tr>
-   <td><img src="Images/JC.jpg" width="300" height="300"></td>
+   <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/NST/JC_Kanagawa.jpg" width="300" height="300"></td>
+   <td><img src="Images/NST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="197"></td>
+   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
+   <td><img src="Images/NST/MonaLisa_Kanagawa.jpg" width="300" height="197"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="197"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/NST/MonaLisa_StarryNight.jpg" width="300" height="197"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Colares.jpg" width="300" height="150"></td>
+   <td><img src="Images/Scream.jpg" width="300" height="383"></td>
+   <td><img src="Images/NST/Colares_Scream.jpg" width="300" height="150"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Wanderer.jpg" width="300" height="390"></td>
+   <td><img src="Images/Scream.jpg" width="300" height="383"></td>
+   <td><img src="Images/NST/Colares_Scream.jpg" width="300" height="390"></td>
   </tr>
  </table> 
 </div>
@@ -72,22 +92,34 @@ Also includes the small improvement of replacing the batch normalization layers 
    <th>Output</th>
   </tr>
   <tr>
-   <td><img src="Images/JC.jpg" width="300" height="300"></td>
-   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/FastNST/JC_Kanagawa.jpg" width="300" height="300"></td>
+   <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/FastNST/Oslo_StarryNight.jpg" width="300" height="225"></td>
   </tr>
   <tr>
-   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/FastNST/StarryNight_Kanagawa.jpg" width="300" height="238"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/FastNST/Kanagawa_StarryNight.jpg" width="300" height="207"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="197"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/FastNST/MonaLisa_StarryNight.jpg" width="300" height="197"></td>
   </tr>
   <tr>
    <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
    <td><img src="Images/FastNST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
   </tr>
- </table> 
+  <tr>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="197"></td>
+   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
+   <td><img src="Images/FastNST/MonaLisa_Kanagawa.jpg" width="300" height="197"></td>
+  </tr>
+ </table>
 </div>
+
+The example images are generally worse in quality compared to the NST outputs due to a lack of training.
 
 
 ## Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization
@@ -108,7 +140,46 @@ and VGG19 features from multiple different layers of the tranformed image and th
 
 The model is then able to be applied to any content image and style image, unlike the fast NST which trains a separate model for each style image.
 
-The model is trained on the unlabeled MSCOCO dataset for content images and the WikiArt dataset for style images.
+The original model is trained on the unlabeled MSCOCO dataset for content images and the WikiArt dataset for style images.
+The model trained here to generate the examples below is instead trained on the smaller [Pascal VOC 2012 dataset](https://host.robots.ox.ac.uk/pascal/VOC/voc2012/) for content images
+and the [Best Artworks of All Time dataset](https://www.kaggle.com/datasets/ikarus777/best-artworks-of-all-time) for style images to speed up the training. The examples are also of less quality due to both less data and not enough training time.
+
+### Examples
+
+<div align="center">
+ <table>
+  <tr>
+   <th>Content</th>
+   <th>Style</th>
+   <th>Output</th>
+  </tr>
+  <tr>
+   <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/ArbitraryNST/Oslo_StarryNight.jpg" width="300" height="225"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
+   <td><img src="Images/StyleTransferImage.jpg" width="300" height="125"></td>
+   <td><img src="Images/ArbitraryNST/Oslo_StyleTransferImage.jpg" width="300" height="225"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
+   <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
+   <td><img src="Images/ArbitraryNST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="197"></td>
+   <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
+   <td><img src="Images/ArbitraryNST/MonaLisa_StarryNight.jpg" width="300" height="197"></td>
+  </tr>
+  <tr>
+   <td><img src="Images/Colares.jpg" width="300" height="150"></td>
+   <td><img src="Images/Scream.jpg" width="300" height="383"></td>
+   <td><img src="Images/ArbitraryNST/Colares_Scream.jpg" width="300" height="150"></td>
+  </tr>
+ </table>
+</div>
 
 ## Arbitrary Style Transfer with Style-Attentional Networks
 

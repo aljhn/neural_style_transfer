@@ -110,17 +110,16 @@ class Transform(nn.Module):
     def __init__(self):
         super().__init__()
         self.network = nn.Sequential(
-            ConvBlock(3, 32, kernel_size=9, stride=2, padding=4),
-            ConvBlock(32, 64, kernel_size=3, stride=2),
-            ConvBlock(64, 128, kernel_size=3, stride=2),
-            ResBlock(128),
-            ResBlock(128),
-            ResBlock(128),
-            ResBlock(128),
-            ResBlock(128),
-            ConvBlock(128, 64, kernel_size=3, stride=0.5),
-            ConvBlock(64, 32, kernel_size=3, stride=0.5),
-            ConvBlock(32, 3, kernel_size=9, stride=0.5, padding=4, use_relu=False),
+            ConvBlock(3, 50, kernel_size=9, stride=2, padding=4),
+            ConvBlock(50, 100, kernel_size=3, stride=2),
+            ResBlock(100),
+            ResBlock(100),
+            ResBlock(100),
+            ResBlock(100),
+            ResBlock(100),
+            ConvBlock(100, 50, kernel_size=3, stride=0.5),
+            ConvBlock(50, 3, kernel_size=9, stride=0.5, padding=4, use_relu=False),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
@@ -163,12 +162,12 @@ def train():
     optimizer = Adam(transform.parameters(), lr=1e-3)
 
     data_transform = Compose([Resize((image_height, image_width)), ToTensor()])
-    dataset = ImageFolder(root="~/Downloads/MSCOCO/", transform=data_transform)
+    dataset = ImageFolder(root="/datasets/MSCOCO/", transform=data_transform)
     dataloader = DataLoader(dataset, batch_size=5)
 
     content_weight = 1
-    style_weight = 1e9
-    total_variation_weight = 1e3
+    style_weight = 1e8
+    total_variation_weight = 1e4
 
     style = style_image_name.split(".")[0]
     transform_path = os.path.join(os.getcwd(), "Models")
@@ -198,9 +197,6 @@ def train():
                 content_features, _ = model(batch)
 
                 x = transform(batch)
-                print(batch.shape)
-                print(x.shape)
-                exit()
                 x_content_features, x_style_features = model(x)
 
                 L_content = 0
@@ -255,6 +251,7 @@ def apply():
     content_image_path = os.path.abspath(content_image_name)
     content_image = read_image(content_image_path).float() / 255
     content_image = content_image.to(device)
+    content_image = content_image.unsqueeze(0)
 
     style_image_name = sys.argv[2]
     style = style_image_name.split(".")[0]
@@ -267,9 +264,7 @@ def apply():
         print("Trained model not found. Exiting")
         sys.exit()
 
-    # transform.eval() # Keep instance normalization also when aplying the network
     transform = transform.to(device)
-
     output = transform(content_image)
     output_image = output.detach().cpu()
 

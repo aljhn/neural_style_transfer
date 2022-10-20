@@ -94,8 +94,8 @@ class Decoder(nn.Module):
             if i == encoder.final_layer:
                 break
 
-        # self.network = nn.Sequential(*reversed(layers), nn.Sigmoid())
-        self.network = nn.Sequential(*reversed(layers))
+        self.network = nn.Sequential(*reversed(layers), nn.Sigmoid())
+        # self.network = nn.Sequential(*reversed(layers))
 
     def forward(self, x):
         return self.network(x)
@@ -123,15 +123,15 @@ def train():
     adain = AdaIN()
     adain.to(device)
 
-    optimizer = Adam(decoder.parameters(), lr=1e-4)
+    optimizer = Adam(decoder.parameters(), lr=1e-5)
 
     batch_size = 5
 
     data_transform = Compose([Resize(image_size * 2), RandomCrop(image_size), ToTensor()])
-    #dataset_content = ImageFolder(root="~/Downloads/MSCOCO/", transform=data_transform)
-    dataset_content = ImageFolder(root="/datasets/MSCOCO/", transform=data_transform)
-    #dataset_style = ImageFolder(root="~/Downloads/WikiArt/", transform=data_transform)
-    dataset_style = ImageFolder(root="/datasets/WikiArt/", transform=data_transform)
+    # dataset_content = ImageFolder(root="/datasets/MSCOCO/", transform=data_transform)
+    dataset_content = ImageFolder(root="/datasets/PascalVOC/", transform=data_transform)
+    #dataset_style = ImageFolder(root="~/datasets/WikiArt/", transform=data_transform)
+    dataset_style = ImageFolder(root="/datasets/BestArtworksOfAllTime/", transform=data_transform)
     dataloader_content = DataLoader(dataset_content, batch_size=batch_size)
     dataloader_style = DataLoader(dataset_style, batch_size=batch_size, shuffle=True)
     dataloader_style_iterator = iter(dataloader_style)
@@ -154,11 +154,11 @@ def train():
         epoch_start = 1
         iteration_start = 0
 
-    style_weight = 1e-1
+    style_weight = 1e3
 
     mse = nn.MSELoss()
     
-    epochs = 2
+    epochs = 50
     for epoch in range(epoch_start, epochs + 1):
         try:
             for iteration, (batch_content, _) in enumerate(dataloader_content, iteration_start):
@@ -177,7 +177,7 @@ def train():
                     continue
 
                 g_t = decoder(t)
-
+                
                 f_g_t, f_g_t_styles = encoder(g_t)
 
                 L_content = mse(f_g_t, t)
@@ -211,9 +211,13 @@ def train():
                 f.write(str(iteration))
 
             sys.exit()
+        
+        except StopIteration:
+            iteration_start = 0
+            dataloader_style_iterator = iter(dataloader_style)
 
     torch.save(decoder.state_dict(), model_path)
-    with open(progress_path) as f:
+    with open(progress_path, "w") as f:
         f.write(str(1) + "\n")
         f.write(str(0))
 
