@@ -40,14 +40,14 @@ Also includes a total variation loss component to minimize high-frequency noise 
    <td><img src="Images/NST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
   </tr>
   <tr>
-   <td><img src="Images/MonaLisa.jpg" width="300" height="450"></td>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="453"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/NST/MonaLisa_Kanagawa.jpg" width="300" height="450"></td>
+   <td><img src="Images/NST/MonaLisa_Kanagawa.jpg" width="300" height="453"></td>
   </tr>
   <tr>
-   <td><img src="Images/MonaLisa.jpg" width="300" height="450"></td>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="453"></td>
    <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
-   <td><img src="Images/NST/MonaLisa_StarryNight.jpg" width="300" height="450"></td>
+   <td><img src="Images/NST/MonaLisa_StarryNight.jpg" width="300" height="453"></td>
   </tr>
   <tr>
    <td><img src="Images/Colares.jpg" width="300" height="150"></td>
@@ -57,7 +57,7 @@ Also includes a total variation loss component to minimize high-frequency noise 
   <tr>
    <td><img src="Images/Wanderer.jpg" width="300" height="390"></td>
    <td><img src="Images/Scream.jpg" width="300" height="383"></td>
-   <td><img src="Images/NST/Colares_Scream.jpg" width="300" height="390"></td>
+   <td><img src="Images/NST/Wanderer_Scream.jpg" width="300" height="390"></td>
   </tr>
  </table> 
 </div>
@@ -102,9 +102,9 @@ Also includes the small improvement of replacing the batch normalization layers 
    <td><img src="Images/FastNST/Kanagawa_StarryNight.jpg" width="300" height="207"></td>
   </tr>
   <tr>
-   <td><img src="Images/MonaLisa.jpg" width="300" height="450"></td>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="453"></td>
    <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
-   <td><img src="Images/FastNST/MonaLisa_StarryNight.jpg" width="300" height="197"></td>
+   <td><img src="Images/FastNST/MonaLisa_StarryNight.jpg" width="300" height="453"></td>
   </tr>
   <tr>
    <td><img src="Images/Oslo.jpg" width="300" height="225"></td>
@@ -112,9 +112,9 @@ Also includes the small improvement of replacing the batch normalization layers 
    <td><img src="Images/FastNST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
   </tr>
   <tr>
-   <td><img src="Images/MonaLisa.jpg" width="300" height="450"></td>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="453"></td>
    <td><img src="Images/Kanagawa.jpg" width="300" height="207"></td>
-   <td><img src="Images/FastNST/MonaLisa_Kanagawa.jpg" width="300" height="197"></td>
+   <td><img src="Images/FastNST/MonaLisa_Kanagawa.jpg" width="300" height="453"></td>
   </tr>
  </table>
 </div>
@@ -169,9 +169,9 @@ and the [Best Artworks of All Time dataset](https://www.kaggle.com/datasets/ikar
    <td><img src="Images/ArbitraryNST/Oslo_Kanagawa.jpg" width="300" height="225"></td>
   </tr>
   <tr>
-   <td><img src="Images/MonaLisa.jpg" width="300" height="450"></td>
+   <td><img src="Images/MonaLisa.jpg" width="300" height="453"></td>
    <td><img src="Images/StarryNight.jpg" width="300" height="238"></td>
-   <td><img src="Images/ArbitraryNST/MonaLisa_StarryNight.jpg" width="300" height="450"></td>
+   <td><img src="Images/ArbitraryNST/MonaLisa_StarryNight.jpg" width="300" height="453"></td>
   </tr>
   <tr>
    <td><img src="Images/Colares.jpg" width="300" height="150"></td>
